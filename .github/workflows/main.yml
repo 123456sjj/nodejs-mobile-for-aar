@@ -72,6 +72,6 @@ jobs:
         draft: false
         prerelease: ${{ contains(env.RELEASE_TAG, '-') }}  # 包含 '-' 的标签视为预发布
         files: |
-          .github/*.aar
+          android/build/outputs/aar/*.aar
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
