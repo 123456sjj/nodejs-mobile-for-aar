@@ -1,7 +1,7 @@
 'use strict';
 
 /* eslint-env node */
-
+ 
 const Module = require('module');
 const path = require('path');
 
