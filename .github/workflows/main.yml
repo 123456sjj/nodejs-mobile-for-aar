@@ -26,6 +26,8 @@ jobs:
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
+      with:
+        build-tools-version: "34.0.0"
 
     - name: Install NDK r21e
       run: |
@@ -35,20 +37,30 @@ jobs:
     - name: Install Gradle
       uses: gradle/gradle-build-action@v2
       with:
-        gradle-version: 7.5.1
+        gradle-version: 8.2  # 更新 Gradle 版本以兼容 Android 插件
 
-    # 关键修复：动态生成 Gradle 项目文件
     - name: Initialize Gradle Project
       working-directory: ./android
       run: |
-        if [ ! -f "settings.gradle" ]; then
-          gradle init --type basic --project-name nodejs-mobile
-        fi
+        cat << EOF > settings.gradle
+        pluginManagement {
+            repositories {
+                google()
+                mavenCentral()
+                gradlePluginPortal()
+            }
+        }
+        rootProject.name = "nodejs-mobile"
+        EOF
 
-        # 生成 Android 库的 build.gradle
         cat << EOF > build.gradle
         plugins {
-            id 'com.android.library'
+            id 'com.android.library' version '8.2.0'
+        }
+
+        repositories {
+            google()
+            mavenCentral()
         }
 
         android {
