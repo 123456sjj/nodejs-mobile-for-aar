@@ -1,0 +1,25 @@
+// android/build.gradle
+plugins {
+    id 'com.android.library' version '8.2.0'  // 必须指定版本号
+}
+
+repositories {
+    google()  // 必须添加 Google Maven 仓库
+    mavenCentral()
+}
+
+android {
+    compileSdk 33
+    namespace 'com.example.nodejsmobile'
+
+    defaultConfig {
+        minSdk 24
+        targetSdk 33
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled false
+        }
+    }
+}
