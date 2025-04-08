@@ -17,8 +17,6 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Set up JDK 17
       uses: actions/setup-java@v3
@@ -34,17 +32,45 @@ jobs:
         echo "y" | sudo $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529"
         echo "NDK_HOME=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
 
-    # 新增：安装全局 Gradle
     - name: Install Gradle
       uses: gradle/gradle-build-action@v2
       with:
-        gradle-version: 7.5.1  # 与项目兼容的版本
+        gradle-version: 7.5.1
 
-    # 修改：使用全局 gradle 命令
-    - name: Build AAR with Global Gradle
+    # 关键修复：动态生成 Gradle 项目文件
+    - name: Initialize Gradle Project
       working-directory: ./android
       run: |
-        gradle assembleRelease  # 不再依赖 gradlew
+        if [ ! -f "settings.gradle" ]; then
+          gradle init --type basic --project-name nodejs-mobile
+        fi
+
+        # 生成 Android 库的 build.gradle
+        cat << EOF > build.gradle
+        plugins {
+            id 'com.android.library'
+        }
+
+        android {
+            compileSdk 33
+            namespace 'com.example.nodejsmobile'
+
+            defaultConfig {
+                minSdk 24
+                targetSdk 33
+            }
+
+            buildTypes {
+                release {
+                    minifyEnabled false
+                }
+            }
+        }
+        EOF
+
+    - name: Build AAR with Global Gradle
+      working-directory: ./android
+      run: gradle assembleRelease
 
     - name: Upload AAR Artifact
       uses: actions/upload-artifact@v4
@@ -61,20 +87,11 @@ jobs:
       with:
         name: nodejs-mobile-build
 
-    - name: Get Release Tag
-      id: get_tag
-      run: |
-        if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
-          echo "RELEASE_TAG=${{ github.event.inputs.release_tag }}" >> $GITHUB_ENV
-        else
-          echo "RELEASE_TAG=${GITHUB_REF#refs/tags/}" >> $GITHUB_ENV
-        fi
-
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ env.RELEASE_TAG }}
         files: |
-          *.aar  # 自动匹配下载的 AAR 文件
+          *.aar
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
