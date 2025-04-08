@@ -1,0 +1,10 @@
+// android/settings.gradle
+pluginManagement {
+    repositories {
+        google()  // 关键配置
+        mavenCentral()
+        gradlePluginPortal()
+    }
+}
+
+rootProject.name = "nodejs-mobile"
