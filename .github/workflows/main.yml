@@ -9,7 +9,7 @@ on:
         default: "v0.1.0"
   push:
     tags:
-      - "v*"  # 当推送带有 v 开头的 tag 时触发
+      - "v*"
 
 jobs:
   build:
@@ -34,23 +34,30 @@ jobs:
         echo "y" | sudo $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529"
         echo "NDK_HOME=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
 
-    - name: Build AAR
+    # 新增：安装全局 Gradle
+    - name: Install Gradle
+      uses: gradle/gradle-build-action@v2
+      with:
+        gradle-version: 7.5.1  # 与项目兼容的版本
+
+    # 修改：使用全局 gradle 命令
+    - name: Build AAR with Global Gradle
       working-directory: ./android
-      run: ./gradlew assembleRelease
+      run: |
+        gradle assembleRelease  # 不再依赖 gradlew
 
     - name: Upload AAR Artifact
       uses: actions/upload-artifact@v4
       with:
         name: nodejs-mobile-build
-        path: |
-          android/build/outputs/aar/*.aar
+        path: android/build/outputs/aar/*.aar
 
   create_release:
     needs: build
     runs-on: ubuntu-latest
     steps:
     - name: Download AAR Artifact
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: nodejs-mobile-build
 
@@ -67,11 +74,7 @@ jobs:
       uses: softprops/action-gh-release@v1
       with:
         tag_name: ${{ env.RELEASE_TAG }}
-        name: "Release ${{ env.RELEASE_TAG }}"
-        body: "Node.js Mobile Android AAR 构建版本"
-        draft: false
-        prerelease: ${{ contains(env.RELEASE_TAG, '-') }}  # 包含 '-' 的标签视为预发布
         files: |
-          android/build/outputs/aar/*.aar
+          *.aar  # 自动匹配下载的 AAR 文件
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
