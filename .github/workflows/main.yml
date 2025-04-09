@@ -17,6 +17,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
 
     - name: Set up JDK 17
       uses: actions/setup-java@v3
@@ -26,63 +28,15 @@ jobs:
 
     - name: Setup Android SDK
       uses: android-actions/setup-android@v2
-      with:
-        build-tools-version: "34.0.0"
 
     - name: Install NDK r21e
       run: |
         echo "y" | sudo $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529"
         echo "NDK_HOME=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
 
-    - name: Install Gradle
-      uses: gradle/gradle-build-action@v2
-      with:
-        gradle-version: 8.2
-
-    - name: Initialize Gradle Project
+    - name: Build AAR
       working-directory: ./android
-      run: |
-        cat << EOF > settings.gradle
-        pluginManagement {
-            repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-            }
-        }
-        rootProject.name = "nodejs-mobile"
-        EOF
-
-        cat << EOF > build.gradle
-        plugins {
-            id 'com.android.library' version '8.2.0'
-        }
-
-        repositories {
-            google()
-            mavenCentral()
-        }
-
-        android {
-            compileSdk 33
-            namespace 'com.example.nodejsmobile'
-
-            defaultConfig {
-                minSdk 24
-                targetSdk 33
-            }
-
-            buildTypes {
-                release {
-                    minifyEnabled false
-                }
-            }
-        }
-        EOF
-
-    - name: Build AAR with Global Gradle
-      working-directory: ./android
-      run: gradle assembleRelease
+      run: ./gradlew assembleRelease
 
     - name: Upload AAR Artifact
       uses: actions/upload-artifact@v4
@@ -102,118 +56,12 @@ jobs:
     - name: Create Release
       uses: softprops/action-gh-release@v1
       with:
-        tag_name: ${{ github.event.inputs.release_tag || env.RELEASE_TAG }}
+        tag_name: ${{ github.event.inputs.release_tag || github.ref_name }}  # 关键修复
+        name: "Release ${{ github.event.inputs.release_tag || github.ref_name }}"
+        body: "Node.js Mobile Android AAR 构建版本"
+        draft: false
+        prerelease: ${{ contains(github.event.inputs.release_tag || github.ref_name, '-') }}
         files: |
           *.aar
       env:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        RELEASE_TAG: ${{ github.event.inputs.release_tag }}name: Build AAR and Publish Release
-
-on:
-  workflow_dispatch:
-    inputs:
-      release_tag:
-        description: "Release tag (格式：v1.0.0)"
-        required: true
-        default: "v0.1.0"
-  push:
-    tags:
-      - "v*"
-
-jobs:
-  build:
-    runs-on: ubuntu-latest
-    steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
-
-    - name: Set up JDK 17
-      uses: actions/setup-java@v3
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Setup Android SDK
-      uses: android-actions/setup-android@v2
-      with:
-        build-tools-version: "34.0.0"
-
-    - name: Install NDK r21e
-      run: |
-        echo "y" | sudo $ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager --install "ndk;21.4.7075529"
-        echo "NDK_HOME=$ANDROID_HOME/ndk/21.4.7075529" >> $GITHUB_ENV
-
-    - name: Install Gradle
-      uses: gradle/gradle-build-action@v2
-      with:
-        gradle-version: 8.2
-
-    - name: Initialize Gradle Project
-      working-directory: ./android
-      run: |
-        cat << EOF > settings.gradle
-        pluginManagement {
-            repositories {
-                google()
-                mavenCentral()
-                gradlePluginPortal()
-            }
-        }
-        rootProject.name = "nodejs-mobile"
-        EOF
-
-        cat << EOF > build.gradle
-        plugins {
-            id 'com.android.library' version '8.2.0'
-        }
-
-        repositories {
-            google()
-            mavenCentral()
-        }
-
-        android {
-            compileSdk 33
-            namespace 'com.example.nodejsmobile'
-
-            defaultConfig {
-                minSdk 24
-                targetSdk 33
-            }
-
-            buildTypes {
-                release {
-                    minifyEnabled false
-                }
-            }
-        }
-        EOF
-
-    - name: Build AAR with Global Gradle
-      working-directory: ./android
-      run: gradle assembleRelease
-
-    - name: Upload AAR Artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: nodejs-mobile-build
-        path: android/build/outputs/aar/*.aar
-
-  create_release:
-    needs: build
-    runs-on: ubuntu-latest
-    steps:
-    - name: Download AAR Artifact
-      uses: actions/download-artifact@v4
-      with:
-        name: nodejs-mobile-build
-
-    - name: Create Release
-      uses: softprops/action-gh-release@v1
-      with:
-        tag_name: ${{ github.event.inputs.release_tag || env.RELEASE_TAG }}
-        files: |
-          *.aar
-      env:
-        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        RELEASE_TAG: ${{ github.event.inputs.release_tag }}
