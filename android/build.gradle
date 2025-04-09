@@ -17,9 +17,14 @@ android {
         targetSdk 33
     }
 
-    buildTypes {
+   buildTypes {
         release {
+            // 显式启用 release 构建
             minifyEnabled false
+        }
+        debug {
+            // 显式启用 debug 构建
+            debuggable true
         }
     }
 }
